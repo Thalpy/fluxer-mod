@@ -114,14 +114,24 @@ export function useE2EKeySharing(channelId: string) {
 /**
  * Initialize E2E on app start.
  */
+ * Initialize E2E on app start.
+ */
 export function useE2EInit() {
-  const [initialized, setInitialized] = useState(false);
+ const [initialized, setInitialized] = useState(false);
 
-  useEffect(() => {
-    e2eManager.initialize().then(() => {
-      setInitialized(true);
-    });
-  }, []);
+ useEffect(() => {
+   let cancelled = false;
 
-  return initialized;
+   e2eManager.initialize().then(() => {
+     if (!cancelled) {
+       setInitialized(true);
+     }
+   });
+
+   return () => {
+     cancelled = true;
+   };
+ }, []);
+
+ return initialized;
 }
