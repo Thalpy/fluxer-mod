@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	python3 \
 	make \
 	g++ \
+	ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
@@ -23,37 +24,55 @@ COPY pnpm-lock.yaml ./
 COPY package.json ./
 COPY patches/ ./patches/
 
+# All packages (updated to match current repo structure)
 COPY packages/admin/package.json ./packages/admin/
 COPY packages/api/package.json ./packages/api/
-COPY packages/app/package.json ./packages/app/
+COPY packages/app_proxy/package.json ./packages/app_proxy/
 COPY packages/cache/package.json ./packages/cache/
 COPY packages/captcha/package.json ./packages/captcha/
 COPY packages/cassandra/package.json ./packages/cassandra/
 COPY packages/config/package.json ./packages/config/
 COPY packages/constants/package.json ./packages/constants/
+COPY packages/date_utils/package.json ./packages/date_utils/
+COPY packages/e2e/package.json ./packages/e2e/
 COPY packages/email/package.json ./packages/email/
 COPY packages/errors/package.json ./packages/errors/
+COPY packages/geoip/package.json ./packages/geoip/
+COPY packages/geo_utils/package.json ./packages/geo_utils/
 COPY packages/hono/package.json ./packages/hono/
 COPY packages/hono_types/package.json ./packages/hono_types/
+COPY packages/http_client/package.json ./packages/http_client/
+COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/initialization/package.json ./packages/initialization/
 COPY packages/ip_utils/package.json ./packages/ip_utils/
+COPY packages/kv_client/package.json ./packages/kv_client/
+COPY packages/limits/package.json ./packages/limits/
+COPY packages/list_utils/package.json ./packages/list_utils/
+COPY packages/locale/package.json ./packages/locale/
 COPY packages/logger/package.json ./packages/logger/
+COPY packages/markdown_parser/package.json ./packages/markdown_parser/
 COPY packages/marketing/package.json ./packages/marketing/
 COPY packages/media_proxy/package.json ./packages/media_proxy/
+COPY packages/media_proxy_utils/package.json ./packages/media_proxy_utils/
+COPY packages/meilisearch_search/package.json ./packages/meilisearch_search/
+COPY packages/mime_utils/package.json ./packages/mime_utils/
+COPY packages/nats/package.json ./packages/nats/
+COPY packages/number_utils/package.json ./packages/number_utils/
 COPY packages/oauth2/package.json ./packages/oauth2/
+COPY packages/openapi/package.json ./packages/openapi/
 COPY packages/queue/package.json ./packages/queue/
 COPY packages/rate_limit/package.json ./packages/rate_limit/
 COPY packages/s3/package.json ./packages/s3/
+COPY packages/schema/package.json ./packages/schema/
 COPY packages/sentry/package.json ./packages/sentry/
 COPY packages/sms/package.json ./packages/sms/
 COPY packages/snowflake/package.json ./packages/snowflake/
 COPY packages/telemetry/package.json ./packages/telemetry/
+COPY packages/time/package.json ./packages/time/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/validation/package.json ./packages/validation/
 COPY packages/virus_scan/package.json ./packages/virus_scan/
 COPY packages/worker/package.json ./packages/worker/
-COPY packages/http_client/package.json ./packages/http_client/
-COPY packages/schema/package.json ./packages/schema/
 COPY fluxer_server/package.json ./fluxer_server/
 COPY fluxer_app/package.json ./fluxer_app/
 
@@ -68,6 +87,8 @@ FROM deps AS build
 COPY tsconfigs /usr/src/app/tsconfigs
 
 COPY packages/ ./packages/
+# Re-run pnpm install to fix workspace links after copying full sources
+RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @fluxer/config generate
 COPY fluxer_server/ ./fluxer_server/
 
@@ -111,6 +132,20 @@ COPY tsconfigs /usr/src/app/tsconfigs
 
 COPY packages/ ./packages/
 COPY fluxer_app/ ./fluxer_app/
+
+# Re-run pnpm install to fix workspace links after copying full sources
+RUN pnpm install --frozen-lockfile
+
+# Install Rust toolchain for WASM compilation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	curl \
+	build-essential \
+	ca-certificates \
+	&& curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+	&& . /root/.cargo/env \
+	&& cargo install wasm-pack \
+	&& rm -rf /var/lib/apt/lists/*
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 RUN cd fluxer_app && pnpm build
 
