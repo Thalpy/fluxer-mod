@@ -33,10 +33,25 @@ export function KeySharingDialog({
   }, [exportKey]);
 
   const handleCopy = useCallback(async () => {
-    if (exportedKey) {
+    if (!exportedKey) {
+      return;
+    }
+
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+      // Fallback: clipboard API not available (insecure context, unsupported browser, etc.)
+      window.alert('Copy to clipboard is not supported in this environment. Please copy the key manually.');
+      return;
+    }
+
+    try {
       await navigator.clipboard.writeText(exportedKey);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      // Handle permission denied or other runtime clipboard errors
+      // eslint-disable-next-line no-console
+      console.error('Failed to copy key to clipboard:', error);
+      window.alert('Failed to copy to clipboard. Please copy the key manually.');
     }
   }, [exportedKey]);
 
