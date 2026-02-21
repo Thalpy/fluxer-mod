@@ -230,4 +230,4 @@ ENV RELEASE_CHANNEL=${RELEASE_CHANNEL}
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 	CMD curl -f http://localhost:8080/_health || exit 1
 
-ENTRYPOINT ["pnpm", "start"]
+ENTRYPOINT ["pnpm", "--filter", "fluxer_server", "start"]
