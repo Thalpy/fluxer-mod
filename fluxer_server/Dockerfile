@@ -168,6 +168,7 @@ LABEL org.opencontainers.image.created="${BUILD_TIMESTAMP}"
 
 WORKDIR /usr/src/app
 
+COPY fluxer_integration/docker/config.json ./config.json
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	curl \
 	ffmpeg \
@@ -213,6 +214,7 @@ EXPOSE 8080
 
 ENV NODE_ENV=production
 
+ENV FLUXER_CONFIG=/usr/src/app/config.json
 ENV FLUXER_SERVER_HOST=0.0.0.0
 ENV FLUXER_SERVER_PORT=8080
 ENV FLUXER_GATEWAY_HOST=127.0.0.1
