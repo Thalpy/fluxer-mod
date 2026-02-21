@@ -21,7 +21,8 @@
 	"services": {
 		"server": {
 			"port": 8080,
-			"host": "0.0.0.0"
+			"host": "0.0.0.0",
+			"static_dir": "/usr/src/app/assets"
 		},
 		"media_proxy": {
 			"secret_key": "GENERATE_WITH_openssl_rand_-hex_32"
@@ -54,8 +55,14 @@
 	},
 	"integrations": {
 		"search": {
-			"url": "http://127.0.0.1:7700",
-			"api_key": "GENERATE_WITH_openssl_rand_-hex_16"
+			"url": "http://meilisearch:7700",
+			"api_key": "SAME_AS_MEILI_MASTER_KEY_IN_COMPOSE"
+		},
+		"voice": {
+			"enabled": false,
+			"api_key": "LIVEKIT_API_KEY_IF_USING_VOICE",
+			"api_secret": "LIVEKIT_API_SECRET_IF_USING_VOICE",
+			"url": "ws://livekit:7880"
 		}
 	}
 }

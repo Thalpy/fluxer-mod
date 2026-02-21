@@ -4,6 +4,12 @@
 #   2. Copy config template: cp config/config.docker.template.json config/config.json
 #   3. Edit config/config.json with your domain and generate secrets
 #   4. Start: docker compose -f docker-compose.local.yaml up -d
+#
+# Optional profiles:
+#   - search: Meilisearch for full-text search
+#   - voice: LiveKit for voice/video (requires additional port config)
+#
+# Example with search: docker compose -f docker-compose.local.yaml --profile search up -d
 
 services:
   valkey:
@@ -25,11 +31,36 @@ services:
     command: ["-js"]
     ports:
       - "4222:4222"
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.14
+    profiles: ["search"]
+    restart: unless-stopped
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change-me-to-a-secure-key}
+    volumes:
+      - meilisearch_data:/meili_data
     healthcheck:
-      test: ["CMD", "nats-server", "--help"]
-      interval: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 15s
       timeout: 5s
       retries: 5
+
+  livekit:
+    image: livekit/livekit-server:v1.9.11
+    profiles: ["voice"]
+    restart: unless-stopped
+    command: ["--config", "/etc/livekit/livekit.yaml"]
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "3478:3478/udp"
+      - "50000-50100:50000-50100/udp"
+    volumes:
+      - ./config/livekit.yaml:/etc/livekit/livekit.yaml:ro
 
   fluxer:
     image: fluxer-server:local
@@ -56,3 +87,4 @@ services:
 volumes:
   valkey_data:
   fluxer_data:
+  meilisearch_data:
