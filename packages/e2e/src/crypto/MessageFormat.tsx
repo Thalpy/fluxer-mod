@@ -132,7 +132,7 @@ export function getMaxPlaintextLength(): number {
   // JSON envelope adds ~50 chars, and base64 expands by 4/3
   const jsonOverhead = 50;
   const available = 2000 - fixedOverhead - jsonOverhead;
-  // Base64 expands by ~33%, and AES-GCM adds 16-byte auth tag + 12-byte IV
-  // So max plaintext ≈ available * 0.75 - 28 bytes overhead
+  // Base64 expands by ~33%, and AES-GCM adds 16-byte auth tag + 12-byte IV.
+  // We use ~65% of the remaining space as a conservative upper bound for plaintext.
   return Math.floor(available * 0.65); // Conservative estimate
 }
