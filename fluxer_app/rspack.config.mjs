@@ -35,7 +35,7 @@ const DIST_DIR = path.join(ROOT_DIR, 'dist');
 const PKGS_DIR = path.join(ROOT_DIR, 'pkgs');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'assets');
 
-const CDN_ENDPOINT = 'https://fluxerstatic.com';
+const DEFAULT_CDN_ENDPOINT = 'https://fluxerstatic.com';
 
 function resolveMode() {
 	const modeIndex = process.argv.indexOf('--mode');
@@ -223,11 +223,29 @@ function getPublicEnvVar(values, name) {
 	return value === undefined ? 'undefined' : JSON.stringify(value);
 }
 
+function resolveStaticCdnEndpoint(config) {
+	const domain = getValue(config, ['domain'], {});
+	const overrides = getValue(config, ['endpoint_overrides'], {});
+	const endpoints = deriveEndpointsFromDomain(domain, overrides);
+	// For self-hosting: if staticCdn points to localhost or same as base_domain, use relative path
+	const staticCdn = endpoints.staticCdn;
+	if (staticCdn.includes('localhost') || staticCdn.includes('127.0.0.1')) {
+		return '';
+	}
+	// If static_cdn_domain is empty/same as base_domain, use relative paths
+	const staticCdnDomain = domain.static_cdn_domain;
+	if (!staticCdnDomain || staticCdnDomain === '' || staticCdnDomain === domain.base_domain) {
+		return '';
+	}
+	return `https://${staticCdnDomain}`;
+}
+
 export default () => {
 	const linguiSwcPlugin = getLinguiSwcPluginConfig();
 	const config = readConfig();
 	const appPublic = resolveAppPublic(config);
 	const buildMetadata = resolveBuildMetadata();
+	const cdnEndpoint = resolveStaticCdnEndpoint(config);
 	const publicValues = {
 		PUBLIC_BUILD_SHA: buildMetadata.buildSha,
 		PUBLIC_BUILD_NUMBER: buildMetadata.buildNumber,
@@ -250,7 +268,7 @@ export default () => {
 
 		output: {
 			path: DIST_DIR,
-			publicPath: isProduction ? `${CDN_ENDPOINT}/` : '/',
+			publicPath: isProduction ? (cdnEndpoint ? `${cdnEndpoint}/` : '/') : '/',
 			workerPublicPath: '/',
 			filename: (pathData) => {
 				if (pathData.chunk?.name === 'sw') {
@@ -439,7 +457,7 @@ export default () => {
 				],
 			}),
 
-			staticFilesPlugin({staticCdnEndpoint: CDN_ENDPOINT}),
+			staticFilesPlugin({staticCdnEndpoint: cdnEndpoint || DEFAULT_CDN_ENDPOINT}),
 
 			new DefinePlugin({
 				'process.env.NODE_ENV': JSON.stringify(mode),
