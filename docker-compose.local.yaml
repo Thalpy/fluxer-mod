@@ -1,0 +1,58 @@
+# Docker Compose for local self-hosting
+# Usage:
+#   1. Build the image: docker build -t fluxer-server:local -f fluxer_server/Dockerfile .
+#   2. Copy config template: cp config/config.docker.template.json config/config.json
+#   3. Edit config/config.json with your domain and generate secrets
+#   4. Start: docker compose -f docker-compose.local.yaml up -d
+
+services:
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2-alpine
+    restart: unless-stopped
+    command: ["-js"]
+    ports:
+      - "4222:4222"
+    healthcheck:
+      test: ["CMD", "nats-server", "--help"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  fluxer:
+    image: fluxer-server:local
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    environment:
+      FLUXER_CONFIG: /usr/src/app/config/config.json
+    volumes:
+      - ./config:/usr/src/app/config:ro
+      - fluxer_data:/usr/src/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/_health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  valkey_data:
+  fluxer_data:
