@@ -40,6 +40,7 @@ export class NSFWDetectionService {
 	private session: ort.InferenceSession | null = null;
 	private readonly NSFW_THRESHOLD = 0.85;
 	private modelPath: string;
+	private enabled = false;
 
 	constructor(options?: {modelPath?: string | undefined; nodeEnv?: string | undefined}) {
 		const nodeEnv = options?.nodeEnv ?? 'production';
@@ -49,8 +50,20 @@ export class NSFWDetectionService {
 	}
 
 	async initialize(): Promise<void> {
-		const modelBuffer = await fs.readFile(this.modelPath);
-		this.session = await ort.InferenceSession.create(modelBuffer);
+		try {
+			await fs.access(this.modelPath);
+			const modelBuffer = await fs.readFile(this.modelPath);
+			this.session = await ort.InferenceSession.create(modelBuffer);
+			this.enabled = true;
+		} catch {
+			// Model file not found - NSFW detection will be disabled
+			console.warn(`NSFW model not found at ${this.modelPath} - NSFW detection disabled`);
+			this.enabled = false;
+		}
+	}
+
+	isEnabled(): boolean {
+		return this.enabled;
 	}
 
 	async checkNSFW(filePath: string): Promise<NSFWCheckResult> {
@@ -59,8 +72,9 @@ export class NSFWDetectionService {
 	}
 
 	async checkNSFWBuffer(buffer: Buffer): Promise<NSFWCheckResult> {
-		if (!this.session) {
-			throw new Error('NSFW Detection service not initialized');
+		if (!this.enabled || !this.session) {
+			// NSFW detection disabled - return safe default
+			return {isNSFW: false, probability: 0};
 		}
 
 		const processedImage = await this.preprocessImage(buffer);
