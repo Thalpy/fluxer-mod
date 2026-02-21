@@ -4,7 +4,8 @@
 	"domain": {
 		"base_domain": "REPLACE_WITH_YOUR_DOMAIN",
 		"public_scheme": "https",
-		"public_port": 443
+		"public_port": 443,
+		"static_cdn_domain": ""
 	},
 	"database": {
 		"backend": "sqlite",
