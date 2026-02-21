@@ -34,7 +34,6 @@ COPY packages/cassandra/package.json ./packages/cassandra/
 COPY packages/config/package.json ./packages/config/
 COPY packages/constants/package.json ./packages/constants/
 COPY packages/date_utils/package.json ./packages/date_utils/
-COPY packages/e2e/package.json ./packages/e2e/
 COPY packages/email/package.json ./packages/email/
 COPY packages/errors/package.json ./packages/errors/
 COPY packages/geoip/package.json ./packages/geoip/
@@ -147,7 +146,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	&& rm -rf /var/lib/apt/lists/*
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN cd fluxer_app && pnpm build
+RUN cd fluxer_app && pnpm wasm:codegen && pnpm generate:colors && pnpm generate:masks && pnpm generate:css-types && pnpm lingui:compile && rm -rf dist && FLUXER_CONFIG=../fluxer_integration/docker/config.json pnpm exec rspack build --mode production && pnpm tsx scripts/build-sw.mjs
 
 FROM node:24-trixie-slim AS production
 
