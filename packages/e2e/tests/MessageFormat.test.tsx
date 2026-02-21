@@ -76,8 +76,8 @@ describe('Message Format', () => {
     });
 
     it('returns null for malformed E2E messages', () => {
-      // Has prefix but no payload
-      const malformed1 = E2E_MESSAGE_PREFIX + 'no newline';
+      // Has prefix but no payload delimiter or newline
+      const malformed1 = E2E_MESSAGE_PREFIX + 'no delimiter or newline';
       expect(unwrapE2EMessage(malformed1)).toBeNull();
 
       // Has prefix + newline but invalid base64
@@ -91,6 +91,29 @@ describe('Message Format', () => {
       // Valid JSON but wrong structure
       const malformed4 = E2E_MESSAGE_PREFIX + 'fallback\n' + btoa('{"wrong": "structure"}');
       expect(unwrapE2EMessage(malformed4)).toBeNull();
+    });
+
+    it('wrapped message uses spoiler tags to hide payload', () => {
+      const wrapped = wrapE2EMessage(mockPayload);
+      
+      // Should contain spoiler markers
+      expect(wrapped).toContain('||');
+      
+      // The payload should be between spoiler tags
+      const spoilerMatch = wrapped.match(/\|\|([A-Za-z0-9+/=]+)\|\|/);
+      expect(spoilerMatch).not.toBeNull();
+    });
+
+    it('unwraps old format (newline separator) for backward compatibility', () => {
+      // Simulate old format: prefix + fallback + newline + base64
+      const envelope = { v: 1, p: mockPayload };
+      const oldFormat = E2E_MESSAGE_PREFIX + '🔒 Old fallback\n' + btoa(JSON.stringify(envelope));
+      
+      const unwrapped = unwrapE2EMessage(oldFormat);
+      
+      expect(unwrapped).not.toBeNull();
+      expect(unwrapped!.v).toBe(1);
+      expect(unwrapped!.p.ciphertext).toBe(mockPayload.ciphertext);
     });
   });
 
