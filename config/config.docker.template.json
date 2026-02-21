@@ -1,0 +1,61 @@
+{
+	"$schema": "../packages/config/src/ConfigSchema.json",
+	"env": "production",
+	"domain": {
+		"base_domain": "REPLACE_WITH_YOUR_DOMAIN",
+		"public_scheme": "https",
+		"public_port": 443
+	},
+	"database": {
+		"backend": "sqlite",
+		"sqlite_path": "./data/fluxer.db"
+	},
+	"internal": {
+		"kv": "redis://valkey:6379/0"
+	},
+	"s3": {
+		"access_key_id": "",
+		"secret_access_key": "",
+		"endpoint": "http://127.0.0.1:8080/s3"
+	},
+	"services": {
+		"server": {
+			"port": 8080,
+			"host": "0.0.0.0"
+		},
+		"media_proxy": {
+			"secret_key": "GENERATE_WITH_openssl_rand_-hex_32"
+		},
+		"admin": {
+			"secret_key_base": "GENERATE_WITH_openssl_rand_-hex_32",
+			"oauth_client_secret": "GENERATE_WITH_openssl_rand_-hex_32"
+		},
+		"marketing": {
+			"enabled": true,
+			"secret_key_base": "GENERATE_WITH_openssl_rand_-hex_32"
+		},
+		"gateway": {
+			"port": 8082,
+			"admin_reload_secret": "GENERATE_WITH_openssl_rand_-hex_32",
+			"media_proxy_endpoint": "http://127.0.0.1:8080/media"
+		},
+		"nats": {
+			"core_url": "nats://nats:4222",
+			"jetstream_url": "nats://nats:4222"
+		}
+	},
+	"auth": {
+		"sudo_mode_secret": "GENERATE_WITH_openssl_rand_-hex_32",
+		"connection_initiation_secret": "GENERATE_WITH_openssl_rand_-hex_32",
+		"vapid": {
+			"public_key": "GENERATE_VAPID_KEYS_SEE_README",
+			"private_key": "GENERATE_VAPID_KEYS_SEE_README"
+		}
+	},
+	"integrations": {
+		"search": {
+			"url": "http://127.0.0.1:7700",
+			"api_key": "GENERATE_WITH_openssl_rand_-hex_16"
+		}
+	}
+}
