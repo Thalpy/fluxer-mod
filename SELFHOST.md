@@ -48,7 +48,17 @@ Set `domain.base_domain` to your domain (e.g., `chat.example.com`).
 ### 3. Launch
 
 ```bash
+# Basic (no search, no voice)
 docker compose -f docker-compose.local.yaml up -d
+
+# With Meilisearch for full-text search
+docker compose -f docker-compose.local.yaml --profile search up -d
+
+# With voice/video (LiveKit)
+docker compose -f docker-compose.local.yaml --profile voice up -d
+
+# With both
+docker compose -f docker-compose.local.yaml --profile search --profile voice up -d
 
 # Check status
 docker compose -f docker-compose.local.yaml ps
@@ -62,6 +72,21 @@ docker compose -f docker-compose.local.yaml logs -f fluxer
 Open `http://your-server:8080` in your browser.
 
 For production, put nginx or Caddy in front for HTTPS.
+
+## Optional Features
+
+### Meilisearch (Full-Text Search)
+
+1. Set `MEILI_MASTER_KEY` environment variable or edit compose file
+2. Use the same key in `config/config.json` under `integrations.search.api_key`
+3. Start with `--profile search`
+
+### LiveKit (Voice/Video)
+
+1. Open firewall ports: 7881/tcp, 3478/udp, 50000-50100/udp
+2. Create `config/livekit.yaml` (see LiveKit docs)
+3. Set `integrations.voice.enabled: true` in config
+4. Start with `--profile voice`
 
 ## Useful Commands
 
