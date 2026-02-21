@@ -61,12 +61,16 @@ class MemoryKeyStoreBackend implements KeyStoreBackend {
   }
 
   async getByTarget(targetId: string, type: StoredKey['type']): Promise<StoredKey | null> {
+    // Find all matching keys and return the newest (highest createdAt)
+    let newest: StoredKey | null = null;
     for (const key of this.keys.values()) {
       if (key.targetId === targetId && key.type === type) {
-        return key;
+        if (!newest || key.createdAt > newest.createdAt) {
+          newest = key;
+        }
       }
     }
-    return null;
+    return newest;
   }
 
   async getAllByType(type: StoredKey['type']): Promise<StoredKey[]> {
@@ -154,10 +158,23 @@ class IndexedDBKeyStoreBackend implements KeyStoreBackend {
       const tx = db.transaction(this.storeName, 'readonly');
       const store = tx.objectStore(this.storeName);
       const index = store.index('targetType');
-      const request = index.get([targetId, type]);
+      // Use getAll() to handle multiple keys per target (e.g., after key rotation)
+      // and return the most recent one
+      const request = index.getAll([targetId, type]);
       
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result ?? null);
+      request.onsuccess = () => {
+        const keys = request.result as StoredKey[];
+        if (keys.length === 0) {
+          resolve(null);
+        } else if (keys.length === 1) {
+          resolve(keys[0]);
+        } else {
+          // Return the newest key (highest createdAt)
+          const newest = keys.reduce((a, b) => a.createdAt > b.createdAt ? a : b);
+          resolve(newest);
+        }
+      };
     });
   }
 

@@ -157,7 +157,7 @@ export class E2EManager {
    * Returns the wrapped message ready to send.
    */
   async encryptMessage(channelId: string, plaintext: string): Promise<string> {
-    // Validate length
+    // Quick pre-check to reject obviously too-long messages
     const maxLength = getMaxPlaintextLength();
     if (plaintext.length > maxLength) {
       throw new Error(`Message too long for E2E encryption. Max ${maxLength} characters.`);
@@ -165,13 +165,24 @@ export class E2EManager {
 
     const keyInfo = await this.keyManager.getOrCreateChannelKey(channelId);
     const payload = await encrypt(plaintext, keyInfo.key);
-    return wrapE2EMessage(payload, keyInfo.keyId);
+    const wrapped = wrapE2EMessage(payload, keyInfo.keyId);
+
+    // Final check: verify actual wrapped length doesn't exceed Fluxer's limit
+    if (wrapped.length > 2000) {
+      throw new Error(
+        `Encrypted message too long (${wrapped.length} chars). ` +
+        `Please shorten your message by approximately ${Math.ceil((wrapped.length - 2000) * 0.5)} characters.`
+      );
+    }
+
+    return wrapped;
   }
 
   /**
    * Encrypt a DM message.
    */
   async encryptDM(dmChannelId: string, plaintext: string): Promise<string> {
+    // Quick pre-check to reject obviously too-long messages
     const maxLength = getMaxPlaintextLength();
     if (plaintext.length > maxLength) {
       throw new Error(`Message too long for E2E encryption. Max ${maxLength} characters.`);
@@ -179,14 +190,25 @@ export class E2EManager {
 
     const keyInfo = await this.keyManager.getOrCreateDMKey(dmChannelId);
     const payload = await encrypt(plaintext, keyInfo.key);
-    return wrapE2EMessage(payload, keyInfo.keyId);
+    const wrapped = wrapE2EMessage(payload, keyInfo.keyId);
+
+    // Final check: verify actual wrapped length doesn't exceed Fluxer's limit
+    if (wrapped.length > 2000) {
+      throw new Error(
+        `Encrypted message too long (${wrapped.length} chars). ` +
+        `Please shorten your message by approximately ${Math.ceil((wrapped.length - 2000) * 0.5)} characters.`
+      );
+    }
+
+    return wrapped;
   }
 
   /**
    * Process an incoming message.
    * Automatically detects E2E messages and decrypts them.
+   * Works for both channel messages and DMs.
    */
-  async processMessage(channelId: string, content: string): Promise<ProcessedMessage> {
+  async processMessage(channelId: string, content: string, isDM = false): Promise<ProcessedMessage> {
     // Not an E2E message - return as-is
     if (!isE2EMessage(content)) {
       return {
@@ -216,9 +238,11 @@ export class E2EManager {
       };
     }
 
-    // Decrypt
+    // Decrypt - try DM key first if isDM flag is set, otherwise try channel then DM
     try {
-      const keyInfo = await this.keyManager.getOrCreateChannelKey(channelId);
+      const keyInfo = isDM
+        ? await this.keyManager.getOrCreateDMKey(channelId)
+        : await this.keyManager.getOrCreateChannelKey(channelId);
       const plaintext = await decrypt(envelope.p, keyInfo.key);
       return {
         content: plaintext,
@@ -226,6 +250,20 @@ export class E2EManager {
         keyId: envelope.k,
       };
     } catch (err) {
+      // If channel key failed, try DM key (or vice versa)
+      if (!isDM) {
+        try {
+          const dmKeyInfo = await this.keyManager.getOrCreateDMKey(channelId);
+          const plaintext = await decrypt(envelope.p, dmKeyInfo.key);
+          return {
+            content: plaintext,
+            isEncrypted: true,
+            keyId: envelope.k,
+          };
+        } catch {
+          // Fall through to error
+        }
+      }
       return {
         content: '🔒 [Decryption failed]',
         isEncrypted: true,
