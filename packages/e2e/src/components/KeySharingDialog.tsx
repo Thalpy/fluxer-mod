@@ -56,10 +56,23 @@ export function KeySharingDialog({
 
   return (
     <div className="e2e-dialog-overlay" onClick={onClose}>
-      <div className="e2e-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="e2e-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="e2e-key-dialog-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="e2e-dialog-header">
-          <h3>🔒 E2E Key Management</h3>
-          <button className="e2e-dialog-close" onClick={onClose}>×</button>
+          <h3 id="e2e-key-dialog-title">🔒 E2E Key Management</h3>
+          <button
+            className="e2e-dialog-close"
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
         </div>
 
         <div className="e2e-dialog-tabs">
