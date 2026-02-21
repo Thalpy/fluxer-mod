@@ -117,6 +117,42 @@ describe('E2EManager', () => {
       
       expect(isE2EMessage(encrypted)).toBe(true);
     });
+
+    it('DM messages can be decrypted (round-trip)', async () => {
+      manager.setAutoEncryptDMs(true);
+      
+      const dmChannelId = 'dm-roundtrip-test';
+      const plaintext = 'Secret DM message 🔐';
+
+      // Encrypt
+      const encrypted = await manager.encryptDM(dmChannelId, plaintext);
+      expect(isE2EMessage(encrypted)).toBe(true);
+      expect(encrypted).not.toContain(plaintext);
+
+      // Decrypt via processMessage (with isDM flag)
+      const processed = await manager.processMessage(dmChannelId, encrypted, true);
+
+      expect(processed.content).toBe(plaintext);
+      expect(processed.isEncrypted).toBe(true);
+      expect(processed.error).toBeUndefined();
+    });
+
+    it('DM messages can be decrypted without isDM flag (fallback)', async () => {
+      // Tests that processMessage can find DM keys even without explicit isDM flag
+      manager.setAutoEncryptDMs(true);
+      
+      const dmChannelId = 'dm-fallback-test';
+      const plaintext = 'DM with fallback decryption';
+
+      const encrypted = await manager.encryptDM(dmChannelId, plaintext);
+      
+      // Process without isDM flag - should still work via fallback
+      const processed = await manager.processMessage(dmChannelId, encrypted);
+
+      expect(processed.content).toBe(plaintext);
+      expect(processed.isEncrypted).toBe(true);
+      expect(processed.error).toBeUndefined();
+    });
   });
 
   describe('Cross-Instance Compatibility', () => {
