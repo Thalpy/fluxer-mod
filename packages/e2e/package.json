@@ -1,0 +1,25 @@
+{
+  "name": "@fluxer/e2e",
+  "version": "0.1.0",
+  "description": "End-to-end encryption layer for Fluxer",
+  "type": "module",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./hooks/useE2E": "./src/hooks/useE2E.tsx"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vitest": "catalog:",
+    "@types/node": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  }
+}
