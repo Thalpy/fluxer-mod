@@ -131,6 +131,7 @@ COPY tsconfigs /usr/src/app/tsconfigs
 
 COPY packages/ ./packages/
 COPY fluxer_app/ ./fluxer_app/
+COPY fluxer_integration/docker/config.json ./fluxer_integration/docker/config.json
 
 # Re-run pnpm install to fix workspace links after copying full sources
 RUN pnpm install --frozen-lockfile
@@ -146,7 +147,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	&& rm -rf /var/lib/apt/lists/*
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN cd fluxer_app && pnpm wasm:codegen && pnpm generate:colors && pnpm generate:masks && pnpm generate:css-types && pnpm lingui:compile && rm -rf dist && FLUXER_CONFIG=../fluxer_integration/docker/config.json pnpm exec rspack build --mode production && pnpm tsx scripts/build-sw.mjs
+RUN cd fluxer_app && pnpm wasm:codegen && pnpm generate:colors && pnpm generate:masks && pnpm generate:css-types && pnpm lingui:compile && rm -rf dist && FLUXER_CONFIG=./fluxer_integration/docker/config.json pnpm exec rspack build --mode production && pnpm tsx scripts/build-sw.mjs
 
 FROM node:24-trixie-slim AS production
 
