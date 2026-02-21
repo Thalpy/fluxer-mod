@@ -72,70 +72,97 @@ function MessageContent({ channelId, content }: Props) {
 
 ## Step 4: Add E2E Toggle UI
 
-Add a button in channel settings to enable/disable E2E:
+Use the pre-built component in channel settings:
 
 ```tsx
-import { useChannelE2E } from '@fluxer/e2e/hooks/useE2E';
+import { ChannelSecurityToggle, allE2EStyles } from '@fluxer/e2e';
 
-function ChannelSecuritySettings({ channelId }: Props) {
-  const { isSecure, isLoading, enable, disable } = useChannelE2E(channelId);
-  
+// Add styles once (in your app's CSS or a style tag)
+const styleSheet = document.createElement('style');
+styleSheet.textContent = allE2EStyles;
+document.head.appendChild(styleSheet);
+
+// In channel settings
+function ChannelSettings({ channelId, channelName }: Props) {
   return (
-    <div className="e2e-settings">
-      <h4>🔒 End-to-End Encryption</h4>
-      <p>
-        {isSecure 
-          ? 'Messages in this channel are encrypted.'
-          : 'Enable E2E to encrypt messages in this channel.'}
-      </p>
-      <button 
-        onClick={isSecure ? disable : enable}
-        disabled={isLoading}
-      >
-        {isLoading ? 'Loading...' : isSecure ? 'Disable E2E' : 'Enable E2E'}
-      </button>
+    <div>
+      {/* Other settings... */}
+      
+      <ChannelSecurityToggle 
+        channelId={channelId}
+        channelName={channelName}
+      />
     </div>
   );
 }
 ```
 
-## Step 5: Key Sharing UI
+## Step 5: Add Lock Badge to Channel List
+
+Show a 🔒 badge on encrypted channels:
+
+```tsx
+import { E2EBadge } from '@fluxer/e2e';
+
+function ChannelListItem({ channel }: Props) {
+  return (
+    <div className="channel-item">
+      <span className="channel-name">{channel.name}</span>
+      <E2EBadge channelId={channel.id} />
+    </div>
+  );
+}
+```
+
+## Step 6: Key Sharing Dialog
 
 Add a way for users to share channel keys:
 
 ```tsx
-import { useE2EKeySharing } from '@fluxer/e2e/hooks/useE2E';
+import { KeySharingDialog } from '@fluxer/e2e';
+import { useState } from 'react';
 
-function KeySharingDialog({ channelId }: Props) {
-  const { exportedKey, exportKey, importKey, importStatus } = useE2EKeySharing(channelId);
-  const [importValue, setImportValue] = useState('');
-  
+function ChannelHeader({ channelId, channelName }: Props) {
+  const [showKeyDialog, setShowKeyDialog] = useState(false);
+
   return (
-    <div className="key-sharing">
-      <h4>Share Encryption Key</h4>
+    <div>
+      <button onClick={() => setShowKeyDialog(true)}>
+        🔑 Manage Keys
+      </button>
       
-      <div>
-        <button onClick={exportKey}>Export Key</button>
-        {exportedKey && (
-          <textarea 
-            readOnly 
-            value={exportedKey}
-            onClick={(e) => e.currentTarget.select()}
-          />
-        )}
-      </div>
-      
-      <div>
-        <h5>Import Key</h5>
-        <textarea 
-          value={importValue}
-          onChange={(e) => setImportValue(e.target.value)}
-          placeholder="Paste key here..."
-        />
-        <button onClick={() => importKey(importValue)}>Import</button>
-        {importStatus === 'success' && <span>✅ Key imported!</span>}
-        {importStatus === 'error' && <span>❌ Invalid key</span>}
-      </div>
+      <KeySharingDialog
+        channelId={channelId}
+        channelName={channelName}
+        isOpen={showKeyDialog}
+        onClose={() => setShowKeyDialog(false)}
+      />
+    </div>
+  );
+}
+```
+
+## Step 7: Show Encryption Status on Messages
+
+Indicate when a message is encrypted:
+
+```tsx
+import { E2EMessageIndicator, useProcessMessage } from '@fluxer/e2e';
+
+function Message({ channelId, message }: Props) {
+  const processed = useProcessMessage(channelId, message.content);
+  
+  if (!processed) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div className="message">
+      <E2EMessageIndicator 
+        isEncrypted={processed.isEncrypted}
+        hasError={!!processed.error}
+      />
+      <span className="content">{processed.content}</span>
     </div>
   );
 }
