@@ -246,12 +246,22 @@ export class KeyStore {
     targetId: string,
     type: StoredKey['type']
   ): Promise<StoredKey | null> {
-    const key = await this.backend.getByTarget(targetId, type);
-    if (key && key.expiresAt > 0 && Date.now() > key.expiresAt) {
-      await this.backend.delete(key.id);
-      return null;
+    // Keep fetching the newest key for this target until we find a valid one
+    // or there are no keys left. This handles key rotation where older keys
+    // may still be valid even if the newest one has expired.
+    // 
+    // We rely on the backend to return the next "newest" key after deletion.
+    while (true) {
+      const key = await this.backend.getByTarget(targetId, type);
+      if (!key) {
+        return null;
+      }
+      if (key.expiresAt > 0 && Date.now() > key.expiresAt) {
+        await this.backend.delete(key.id);
+        continue;
+      }
+      return key;
     }
-    return key;
   }
 
   /**
