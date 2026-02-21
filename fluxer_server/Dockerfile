@@ -178,6 +178,8 @@ RUN corepack enable && corepack prepare pnpm@10.26.0 --activate
 COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/packages ./packages
 COPY --from=build /usr/src/app/fluxer_server ./fluxer_server
+COPY --from=build /usr/src/app/fluxer_media_proxy/data /usr/src/app/fluxer_media_proxy/data
+RUN mkdir -p /usr/src/app/fluxer_server/data && cp /usr/src/app/fluxer_media_proxy/data/model.onnx /usr/src/app/fluxer_server/data/model.onnx 2>/dev/null || true
 COPY --from=build /usr/src/app/tsconfigs ./tsconfigs
 COPY --from=build /usr/src/app/pnpm-workspace.yaml ./
 COPY --from=build /usr/src/app/package.json ./
