@@ -90,12 +90,18 @@ export async function importPublicKey(publicKeyBase64: string): Promise<CryptoKe
 
 /**
  * Derive a shared secret from our private key and their public key.
- * Returns an AES-GCM key ready for encryption/decryption.
+ * Uses HKDF to derive the final AES-GCM key from the ECDH shared secret.
+ * 
+ * @param ourPrivateKey - Our X25519 private key
+ * @param theirPublicKey - Their X25519 public key  
+ * @param context - Optional context binding (e.g., channel ID) for domain separation
  */
 export async function deriveSharedSecret(
   ourPrivateKey: CryptoKey,
-  theirPublicKey: CryptoKey
+  theirPublicKey: CryptoKey,
+  context?: string
 ): Promise<CryptoKey> {
+  // Step 1: X25519 ECDH to get raw shared secret
   const sharedBits = await crypto.subtle.deriveBits(
     {
       name: 'X25519',
@@ -105,9 +111,30 @@ export async function deriveSharedSecret(
     256
   );
 
-  return await crypto.subtle.importKey(
+  // Step 2: Import shared secret as HKDF key material
+  const hkdfKey = await crypto.subtle.importKey(
     'raw',
     sharedBits,
+    { name: 'HKDF' },
+    false,
+    ['deriveKey']
+  );
+
+  // Step 3: Use HKDF to derive AES-GCM key with context binding
+  // Info includes protocol version and optional context for domain separation
+  const info = new TextEncoder().encode(`fluxer-e2e-v1${context ? `:${context}` : ''}`);
+  
+  // Salt is empty (we use info for domain separation, and the ECDH output is already high-entropy)
+  const salt = new Uint8Array(0);
+
+  return await crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: salt,
+      info: info,
+    },
+    hkdfKey,
     { name: AES_GCM_ALGORITHM, length: AES_KEY_LENGTH },
     false,  // not extractable
     ['encrypt', 'decrypt']

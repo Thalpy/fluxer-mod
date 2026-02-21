@@ -2,7 +2,18 @@
  * Local key storage for E2E encryption keys.
  * 
  * Uses IndexedDB in browser, with fallback to in-memory for testing.
- * Keys are stored encrypted with a user-derived key (future: device key).
+ * 
+ * SECURITY NOTE: Keys are currently stored as base64 in IndexedDB.
+ * This relies on browser/OS-level storage isolation for protection.
+ * 
+ * For stronger at-rest protection, a future version could:
+ * - Encrypt keys with a device-specific key
+ * - Use Web Crypto's non-extractable keys where possible
+ * - Integrate with platform secure storage (e.g., Electron's safeStorage)
+ * 
+ * Current threat model assumes:
+ * - Attacker does not have local filesystem/IndexedDB access
+ * - Browser same-origin policy is intact
  */
 
 export interface StoredKey {
