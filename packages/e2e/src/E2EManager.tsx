@@ -207,6 +207,10 @@ export class E2EManager {
    * Process an incoming message.
    * Automatically detects E2E messages and decrypts them.
    * Works for both channel messages and DMs.
+   * 
+   * Uses the key ID from the envelope (envelope.k) when available to ensure
+   * the correct key is used, especially after key rotation or import.
+   * Never creates new keys - only uses existing keys for decryption.
    */
   async processMessage(channelId: string, content: string, isDM = false): Promise<ProcessedMessage> {
     // Not an E2E message - return as-is
@@ -227,22 +231,64 @@ export class E2EManager {
       };
     }
 
-    // Get the key
-    const hasKey = await this.keyManager.hasKey(channelId);
-    if (!hasKey) {
-      return {
-        content: '🔒 [Encrypted - no key available]',
-        isEncrypted: true,
-        keyId: envelope.k,
-        error: 'No decryption key for this channel',
-      };
+    // Try to get the specific key by ID first (most reliable for rotated/imported keys)
+    if (envelope.k) {
+      try {
+        const keyInfo = await this.keyManager.getKeyById(envelope.k);
+        if (keyInfo) {
+          const plaintext = await decrypt(envelope.p, keyInfo.key);
+          return {
+            content: plaintext,
+            isEncrypted: true,
+            keyId: envelope.k,
+          };
+        }
+      } catch {
+        // Key ID didn't work, fall through to target-based lookup
+      }
     }
 
-    // Decrypt - try DM key first if isDM flag is set, otherwise try channel then DM
+    // Fall back to looking up by channel/DM target (for backward compat or missing key IDs)
+    // Use getExisting* methods to avoid creating new keys during decryption
+    const keyInfo = isDM
+      ? await this.keyManager.getExistingDMKey(channelId)
+      : await this.keyManager.getExistingChannelKey(channelId);
+
+    if (!keyInfo) {
+      // Try the other type as fallback
+      const fallbackKeyInfo = isDM
+        ? await this.keyManager.getExistingChannelKey(channelId)
+        : await this.keyManager.getExistingDMKey(channelId);
+
+      if (!fallbackKeyInfo) {
+        return {
+          content: '🔒 [Encrypted - no key available]',
+          isEncrypted: true,
+          keyId: envelope.k,
+          error: 'No decryption key for this channel',
+        };
+      }
+
+      // Try with fallback key
+      try {
+        const plaintext = await decrypt(envelope.p, fallbackKeyInfo.key);
+        return {
+          content: plaintext,
+          isEncrypted: true,
+          keyId: envelope.k,
+        };
+      } catch (err) {
+        return {
+          content: '🔒 [Decryption failed]',
+          isEncrypted: true,
+          keyId: envelope.k,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        };
+      }
+    }
+
+    // Decrypt with primary key
     try {
-      const keyInfo = isDM
-        ? await this.keyManager.getOrCreateDMKey(channelId)
-        : await this.keyManager.getOrCreateChannelKey(channelId);
       const plaintext = await decrypt(envelope.p, keyInfo.key);
       return {
         content: plaintext,
@@ -250,11 +296,14 @@ export class E2EManager {
         keyId: envelope.k,
       };
     } catch (err) {
-      // If channel key failed, try DM key (or vice versa)
-      if (!isDM) {
+      // Primary key failed, try the other type as fallback
+      const fallbackKeyInfo = isDM
+        ? await this.keyManager.getExistingChannelKey(channelId)
+        : await this.keyManager.getExistingDMKey(channelId);
+
+      if (fallbackKeyInfo) {
         try {
-          const dmKeyInfo = await this.keyManager.getOrCreateDMKey(channelId);
-          const plaintext = await decrypt(envelope.p, dmKeyInfo.key);
+          const plaintext = await decrypt(envelope.p, fallbackKeyInfo.key);
           return {
             content: plaintext,
             isEncrypted: true,
@@ -264,6 +313,7 @@ export class E2EManager {
           // Fall through to error
         }
       }
+
       return {
         content: '🔒 [Decryption failed]',
         isEncrypted: true,
